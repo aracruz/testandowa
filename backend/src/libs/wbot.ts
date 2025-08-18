@@ -122,7 +122,7 @@ export const restartWbot = async (companyId: number): Promise<void> => {
       const i = sessions.findIndex(s => s.id === c.id);
       if (i !== -1) {
         // Fecha o websocket sem fazer logout forçado
-        sessions[i].ws.close(undefined);
+        sessions[i].ws.close();
       }
     });
   } catch (err) {
@@ -353,15 +353,13 @@ Tipo da mensagem : ${getTypeMessage(msg)}
          */
         wsocket.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
           logger.info(
-            `Socket ${name} Connection Update ${connection || ""} ${
-              lastDisconnect ? (lastDisconnect as any)?.error?.message : ""
+            `Socket ${name} Connection Update ${connection || ""} ${lastDisconnect ? (lastDisconnect as any)?.error?.message : ""
             }`
           );
 
           if (connection === "close") {
             logger.info(
-              `Socket ${name} Connection closed ${
-                lastDisconnect ? (lastDisconnect as any)?.error?.message : ""
+              `Socket ${name} Connection closed ${lastDisconnect ? (lastDisconnect as any)?.error?.message : ""
               }`
             );
 
@@ -434,7 +432,7 @@ Tipo da mensagem : ${getTypeMessage(msg)}
               wsocket!.ev.removeAllListeners("connection.update");
               try {
                 wsocket!.ws.close();
-              } catch {}
+              } catch { }
               wsocket = null;
               retriesQrCodeMap.delete(id);
             } else {
