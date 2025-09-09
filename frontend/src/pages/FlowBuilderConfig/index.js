@@ -20,6 +20,13 @@ import {
   useTheme,
   alpha,
   Chip,
+  Card,
+  CardContent,
+  Fade,
+  Slide,
+  Zoom,
+  Backdrop,
+  Divider,
 } from "@mui/material";
 import {
   AccessTime,
@@ -38,6 +45,15 @@ import {
   GridOn,
   GridOff,
   WarningAmber,
+  Http,
+  AutoAwesome,
+  Timeline,
+  AccountTree,
+  Memory,
+  Speed,
+  Palette,
+  Fullscreen,
+  FullscreenExit,
 } from "@mui/icons-material";
 
 import ReactFlow, {
@@ -63,7 +79,8 @@ import questionNode from "./nodes/questionNode";
 import singleBlockNode from "./nodes/singleBlockNode";
 import ticketNode from "./nodes/ticketNode";
 import RemoveEdge from "./nodes/removeEdge";
-
+import httpRequestNode from "./nodes/httpRequestNode";
+import FlowBuilderHttpRequestModal from "../../components/FlowBuilderHttpRequestModal";
 import api from "../../services/api";
 import toastError from "../../errors/toastError";
 import { AuthContext } from "../../context/Auth/AuthContext";
@@ -116,6 +133,7 @@ const nodeTypes = {
   typebot: typebotNode,
   openai: openaiNode,
   question: questionNode,
+  httpRequest: httpRequestNode,
 };
 
 // Definição dos tipos de conexões
@@ -160,36 +178,93 @@ export const FlowBuilderConfig = () => {
   const [modalAddTypebot, setModalAddTypebot] = useState(null);
   const [modalAddOpenAI, setModalAddOpenAI] = useState(null);
   const [modalAddQuestion, setModalAddQuestion] = useState(null);
+  const [modalAddHttpRequest, setModalAddHttpRequest] = useState(null);
   const [showGrid, setShowGrid] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [nodeCount, setNodeCount] = useState(1);
   const [edgeCount, setEdgeCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Estilos de conexão
+  const handleNodeAction = (nodeId, action) => {
+    storageItems.setNodesStorage(nodeId);
+    storageItems.setAct(action);
+  };
+
+  // Estilos modernos para o tema
+  const modernStyles = {
+    background: isDark
+      ? `linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%)`
+      : `linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)`,
+
+    glassmorphism: {
+      background: isDark
+        ? "rgba(255, 255, 255, 0.05)"
+        : "rgba(255, 255, 255, 0.8)",
+      backdropFilter: "blur(20px)",
+      border: isDark
+        ? "1px solid rgba(255, 255, 255, 0.1)"
+        : "1px solid rgba(255, 255, 255, 0.3)",
+      borderRadius: "20px",
+      boxShadow: isDark
+        ? "0 20px 40px rgba(0,0,0,0.4)"
+        : "0 20px 40px rgba(0,0,0,0.1)",
+    },
+
+    neonGlow: {
+      boxShadow: isDark
+        ? "0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3)"
+        : "0 0 20px rgba(59, 130, 246, 0.2), 0 0 40px rgba(59, 130, 246, 0.1)",
+    },
+  };
+
+  // Estilos de conexão modernos
   const connectionLineStyle = {
-    stroke: isDark ? "#6b6b6b" : "#2b2b2b",
+    stroke: isDark ? "#3b82f6" : "#1e40af",
     strokeWidth: "3px",
+    filter: "drop-shadow(0 0 6px rgba(59, 130, 246, 0.6))",
   };
 
   // Estados para os nós e conexões do fluxo
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Callback para conectar nós
+  // Callback para conectar nós com animação
   const onConnect = useCallback(
     (params) => {
-      setEdges((eds) => addEdge(params, eds));
+      if (params.source === params.target) {
+        console.warn(
+          "Conexão inválida: não é possível conectar um nó a si mesmo."
+        );
+        return;
+      }
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...params,
+            type: "buttonedge",
+            animated: true,
+            style: {
+              stroke: isDark ? "#3b82f6" : "#1e40af",
+              strokeWidth: "3px",
+              filter: "drop-shadow(0 0 6px rgba(59, 130, 246, 0.6))",
+            },
+          },
+          eds
+        )
+      );
       setHasUnsavedChanges(true);
       setEdgeCount((prev) => prev + 1);
     },
-    [setEdges]
+    [setEdges, isDark]
   );
 
   // Função para adicionar um novo nó
   const addNode = (type, data) => {
     const posY = nodes[nodes.length - 1].position.y;
     const posX =
-      nodes[nodes.length - 1].position.x + nodes[nodes.length - 1].width + 40;
+      nodes[nodes.length - 1].position.x +
+      (nodes[nodes.length - 1].width || 200) +
+      40;
 
     let newNode;
 
@@ -314,6 +389,15 @@ export const FlowBuilderConfig = () => {
         };
         setNodes((old) => [...old, newNode]);
         break;
+      case "httpRequest":
+        newNode = {
+          id: geraStringAleatoria(30),
+          position: { x: posX, y: posY },
+          data: { url: data.url, method: data.method, label: data.label },
+          type: "httpRequest",
+        };
+        setNodes((old) => [...old, newNode]);
+        break;
       default:
         break;
     }
@@ -336,6 +420,7 @@ export const FlowBuilderConfig = () => {
   const typebotAdd = (data) => addNode("typebot", data);
   const openaiAdd = (data) => addNode("openai", data);
   const questionAdd = (data) => addNode("question", data);
+  const httpRequestAdd = (data) => addNode("httpRequest", data);
 
   // Carregar fluxo existente
   useEffect(() => {
@@ -348,7 +433,6 @@ export const FlowBuilderConfig = () => {
           setNodes(flowNodes);
           setEdges(data.flow.flow.connections);
 
-          // Armazenar variáveis do fluxo
           const filterVariables = flowNodes.filter(
             (nd) => nd.type === "question"
           );
@@ -357,8 +441,6 @@ export const FlowBuilderConfig = () => {
             .filter(Boolean);
 
           localStorage.setItem("variables", JSON.stringify(variables));
-
-          // Atualizar contadores
           setNodeCount(flowNodes.length);
           setEdgeCount(data.flow.flow.connections.length);
         }
@@ -386,7 +468,6 @@ export const FlowBuilderConfig = () => {
       storageItems.setAct("idle");
       setHasUnsavedChanges(true);
       setNodeCount((prev) => prev - 1);
-      // Atualizar contagem de conexões
       setTimeout(() => {
         setEdgeCount(edges.length);
       }, 100);
@@ -423,6 +504,18 @@ export const FlowBuilderConfig = () => {
       }
     }
   }, [storageItems.action]);
+
+  useEffect(() => {
+    const handleRemoveEdge = (event) => {
+      const { id } = event.detail;
+      setEdges((eds) => eds.filter((edge) => edge.id !== id));
+      setHasUnsavedChanges(true);
+      setEdgeCount((prev) => prev - 1);
+    };
+
+    window.addEventListener("removeEdge", handleRemoveEdge);
+    return () => window.removeEventListener("removeEdge", handleRemoveEdge);
+  }, [setEdges]);
 
   // Carregar mais fluxos
   const loadMore = () => {
@@ -493,6 +586,9 @@ export const FlowBuilderConfig = () => {
       case "question":
         setModalAddQuestion("edit");
         break;
+      case "httpRequest":
+        setModalAddHttpRequest("edit");
+        break;
       default:
         break;
     }
@@ -507,10 +603,11 @@ export const FlowBuilderConfig = () => {
             ...item,
             selected: true,
             style: {
-              borderColor: colorPrimary(),
-              borderWidth: 2,
+              borderColor: "#3b82f6",
+              borderWidth: 3,
               borderStyle: "solid",
-              borderRadius: 8,
+              borderRadius: 12,
+              boxShadow: "0 0 20px rgba(59, 130, 246, 0.6)",
             },
           };
         }
@@ -521,7 +618,7 @@ export const FlowBuilderConfig = () => {
             borderColor: "transparent",
             borderWidth: 2,
             borderStyle: "solid",
-            borderRadius: 8,
+            borderRadius: 12,
           },
         };
       })
@@ -539,7 +636,7 @@ export const FlowBuilderConfig = () => {
             borderColor: "transparent",
             borderWidth: 2,
             borderStyle: "solid",
-            borderRadius: 8,
+            borderRadius: 12,
           },
         };
       })
@@ -568,46 +665,47 @@ export const FlowBuilderConfig = () => {
     setModalAddVideo(null);
     setModalAddSingleBlock(null);
     setModalAddTicket(null);
+    setModalAddHttpRequest(null);
     setHasUnsavedChanges(true);
   };
 
-  // Ações disponíveis no SpeedDial
+  // Ações modernizadas do SpeedDial
   const actions = [
     {
-      icon: <RocketLaunch style={{ color: "#3ABA38" }} />,
+      icon: <RocketLaunch />,
       name: "Inicio",
       type: "start",
-      color: "#3ABA38",
+      color: "#3B82F6", // Blue
     },
     {
-      icon: <LibraryBooks style={{ color: "#EC5858" }} />,
+      icon: <LibraryBooks />,
       name: "Conteúdo",
       type: "content",
-      color: "#EC5858",
+      color: "#EC4899", // Pink
     },
     {
-      icon: <DynamicFeed style={{ color: "#683AC8" }} />,
+      icon: <DynamicFeed />,
       name: "Menu",
       type: "menu",
-      color: "#683AC8",
+      color: "#10B981", // Green
     },
     {
-      icon: <CallSplit style={{ color: "#1FBADC" }} />,
+      icon: <CallSplit />,
       name: "Randomizador",
       type: "random",
-      color: "#1FBADC",
+      color: "#F59E0B", // Amber
     },
     {
-      icon: <AccessTime style={{ color: "#F7953B" }} />,
+      icon: <AccessTime />,
       name: "Intervalo",
       type: "interval",
-      color: "#F7953B",
+      color: "#8B5CF6", // Purple
     },
     {
-      icon: <ConfirmationNumber style={{ color: "#F7953B" }} />,
+      icon: <ConfirmationNumber />,
       name: "Ticket",
       type: "ticket",
-      color: "#F7953B",
+      color: "#06B6D4", // Cyan
     },
     {
       icon: (
@@ -623,19 +721,25 @@ export const FlowBuilderConfig = () => {
       ),
       name: "TypeBot",
       type: "typebot",
-      color: "#3ABA38",
+      color: "#3B82F6", // Blue
     },
     {
-      icon: <SiOpenai style={{ fontSize: 20, color: "#F7953B" }} />,
+      icon: <SiOpenai style={{ fontSize: 20 }} />,
       name: "OpenAI",
       type: "openai",
-      color: "#F7953B",
+      color: "#F97316", // Orange
     },
     {
-      icon: <BallotIcon style={{ color: "#F7953B" }} />,
+      icon: <BallotIcon />,
       name: "Pergunta",
       type: "question",
-      color: "#F7953B",
+      color: "#EF4444", // Red
+    },
+    {
+      icon: <Http />,
+      name: "HTTP Request",
+      type: "httpRequest",
+      color: "#6366F1", // Indigo
     },
   ];
 
@@ -668,6 +772,9 @@ export const FlowBuilderConfig = () => {
         break;
       case "question":
         setModalAddQuestion("create");
+        break;
+      case "httpRequest":
+        setModalAddHttpRequest("create");
         break;
       default:
         break;
@@ -718,14 +825,21 @@ export const FlowBuilderConfig = () => {
     }
   };
 
-  // Componente principal
+  // Toggle fullscreen
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  // Componente principal modernizado
   return (
     <Box
       sx={{
         display: "flex",
         flexDirection: "column",
         height: "100vh",
-        bgcolor: isDark ? alpha("#151718", 0.95) : "#F8F9FA",
+        background: modernStyles.background,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
       {/* Modais */}
@@ -813,437 +927,642 @@ export const FlowBuilderConfig = () => {
         onUpdate={updateNode}
         close={setModalAddQuestion}
       />
+      <FlowBuilderHttpRequestModal
+        open={modalAddHttpRequest}
+        onSave={httpRequestAdd}
+        data={dataNode}
+        onUpdate={updateNode}
+        close={setModalAddHttpRequest}
+      />
 
-      {/* Cabeçalho */}
-      <MainHeader>
-        <Box
+      {/* Header modernizado com glassmorphism */}
+      <Slide direction="down" in={true} timeout={800}>
+        <Card
           sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            width: "100%",
-            alignItems: "center",
+            ...modernStyles.glassmorphism,
+            margin: "16px",
+            marginBottom: "8px",
+            borderRadius: "24px",
+            position: "relative",
+            zIndex: 100,
           }}
         >
-          <Title>Desenhe seu fluxo</Title>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            {hasUnsavedChanges && (
-              <Chip
-                icon={<WarningAmber sx={{ fontSize: 16 }} />}
-                label="Não salvo"
-                size="small"
-                sx={{
-                  bgcolor: alpha("#ff9800", isDark ? 0.2 : 0.1),
-                  color: "#ff9800",
-                  fontWeight: 500,
-                  borderRadius: "6px",
-                }}
-              />
-            )}
-            <Chip
-              label={`Nós: ${nodeCount}`}
-              size="small"
+          <CardContent sx={{ p: 3 }}>
+            <Box
               sx={{
-                bgcolor: isDark ? alpha("#2196f3", 0.2) : alpha("#2196f3", 0.1),
-                color: "#2196f3",
-                fontWeight: 500,
-                borderRadius: "6px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                width: "100%",
               }}
-            />
-            <Chip
-              label={`Conexões: ${edgeCount}`}
-              size="small"
-              sx={{
-                bgcolor: isDark ? alpha("#9c27b0", 0.2) : alpha("#9c27b0", 0.1),
-                color: "#9c27b0",
-                fontWeight: 500,
-                borderRadius: "6px",
-              }}
-            />
-          </Box>
-        </Box>
-      </MainHeader>
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Box
+                  sx={{
+                    background: `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`,
+                    borderRadius: "16px",
+                    p: 1.5,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    ...modernStyles.neonGlow,
+                  }}
+                >
+                  <AccountTree sx={{ color: "white", fontSize: 28 }} />
+                </Box>
+                <Box>
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      fontWeight: 800,
+                      background: `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`,
+                      backgroundClip: "text",
+                      WebkitBackgroundClip: "text",
+                      color: "transparent",
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    Flowbuilder
+                  </Typography>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{
+                      color: isDark
+                        ? "rgba(255,255,255,0.7)"
+                        : "rgba(0,0,0,0.6)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Construa fluxos inteligentes e modernos
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Status chips modernizados */}
+              <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+                {hasUnsavedChanges && (
+                  <Zoom in={hasUnsavedChanges} timeout={300}>
+                    <Chip
+                      icon={<AutoAwesome sx={{ fontSize: 18 }} />}
+                      label="Alterações não salvas"
+                      size="medium"
+                      sx={{
+                        background: `linear-gradient(135deg, #fa709a 0%, #fee140 100%)`,
+                        color: "white",
+                        fontWeight: 600,
+                        borderRadius: "12px",
+                        boxShadow: "0 4px 15px rgba(250, 112, 154, 0.4)",
+                        "& .MuiChip-icon": { color: "white" },
+                      }}
+                    />
+                  </Zoom>
+                )}
+
+                <Chip
+                  icon={<Timeline sx={{ fontSize: 18 }} />}
+                  label={`${nodeCount} Nós`}
+                  size="medium"
+                  sx={{
+                    background: isDark
+                      ? "rgba(59, 130, 246, 0.2)"
+                      : "rgba(59, 130, 246, 0.1)",
+                    color: "#3b82f6",
+                    fontWeight: 600,
+                    borderRadius: "12px",
+                    border: "1px solid rgba(59, 130, 246, 0.3)",
+                    "& .MuiChip-icon": { color: "#3b82f6" },
+                  }}
+                />
+
+                <Chip
+                  icon={<Memory sx={{ fontSize: 18 }} />}
+                  label={`${edgeCount} Conexões`}
+                  size="medium"
+                  sx={{
+                    background: isDark
+                      ? "rgba(156, 39, 176, 0.2)"
+                      : "rgba(156, 39, 176, 0.1)",
+                    color: "#9c27b0",
+                    fontWeight: 600,
+                    borderRadius: "12px",
+                    border: "1px solid rgba(156, 39, 176, 0.3)",
+                    "& .MuiChip-icon": { color: "#9c27b0" },
+                  }}
+                />
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      </Slide>
 
       {/* Conteúdo principal */}
       {loading ? (
-        <Stack justifyContent="center" alignItems="center" height="70vh">
-          <CircularProgress sx={{ color: colorPrimary() }} />
-        </Stack>
-      ) : (
-        <Paper
-          sx={{
-            flex: 1,
-            position: "relative",
-            bgcolor: isDark ? alpha("#1E2021", 0.8) : "#F8F9FA",
-            border: isDark ? `1px solid ${alpha("#FFFFFF", 0.1)}` : "none",
-            borderRadius: "8px",
-            margin: "12px",
-            boxShadow: isDark
-              ? "0 4px 20px rgba(0,0,0,0.2)"
-              : "0 4px 20px rgba(0,0,0,0.05)",
-            overflow: "hidden",
-          }}
-          onScroll={handleScroll}
-        >
-          {/* Aviso para salvar */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: "12px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 10,
-              bgcolor: isDark ? alpha("#1E2021", 0.9) : alpha("#FFFFFF", 0.9),
-              borderRadius: "8px",
-              py: 1,
-              px: 2,
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              backdropFilter: "blur(8px)",
-              border: isDark
-                ? `1px solid ${alpha("#FFFFFF", 0.1)}`
-                : "1px solid rgba(0,0,0,0.05)",
-            }}
-          >
-            <Typography
-              color={isDark ? "rgba(255,255,255,0.8)" : "rgba(0,0,0,0.7)"}
-              fontWeight={500}
-            >
-              Não se esqueça de salvar seu fluxo!
-            </Typography>
-          </Box>
-
-          {/* Menu de ações rápidas */}
-          <SpeedDial
-            ariaLabel="Menu de ações"
-            sx={{
-              position: "absolute",
-              top: 16,
-              left: 16,
-              zIndex: 1000,
-              "& .MuiFab-primary": {
-                bgcolor: colorPrimary(),
-                "&:hover": {
-                  bgcolor: alpha(colorPrimary(), 0.9),
-                },
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              },
-            }}
-            icon={<SpeedDialIcon />}
-            direction={"down"}
-          >
-            {actions.map((action) => (
-              <SpeedDialAction
-                key={action.name}
-                icon={action.icon}
-                tooltipTitle={
-                  <Typography sx={{ px: 1, py: 0.5, fontWeight: 500 }}>
-                    {action.name}
-                  </Typography>
-                }
-                tooltipOpen
-                tooltipPlacement={"right"}
-                sx={{
-                  bgcolor: isDark ? alpha("#1E2021", 0.95) : "#FFFFFF",
-                  "&:hover": {
-                    bgcolor: isDark
-                      ? alpha("#1E2021", 0.8)
-                      : alpha("#F5F5F5", 0.8),
-                  },
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                }}
-                onClick={() => clickActions(action.type)}
-                FabProps={{
-                  sx: {
-                    bgcolor: isDark ? alpha("#1E2021", 0.95) : "#FFFFFF",
-                    "&:hover": {
-                      bgcolor: isDark
-                        ? alpha("#1E2021", 0.8)
-                        : alpha("#F5F5F5", 0.8),
-                    },
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                  },
-                }}
-              />
-            ))}
-          </SpeedDial>
-
-          {/* Botões de ação */}
+        <Fade in={loading} timeout={600}>
           <Stack
-            direction={"row"}
-            justifyContent={"flex-end"}
-            spacing={1}
-            sx={{
-              position: "absolute",
-              top: 12,
-              right: 12,
-              zIndex: 10,
-            }}
+            justifyContent="center"
+            alignItems="center"
+            height="70vh"
+            spacing={3}
           >
-            <input
-              type="file"
-              id="import-flow-builder"
-              accept=".json"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                if (e.target.files?.length) {
-                  handleImportFlow(e.target.files[0]);
-                  e.target.value = "";
-                }
-              }}
-            />
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() =>
-                document.getElementById("import-flow-builder").click()
-              }
-              startIcon={<FileUpload />}
+            <Box
               sx={{
-                textTransform: "none",
-                fontWeight: 500,
-                borderRadius: "8px",
-                bgcolor: isDark
-                  ? alpha("#2196f3", 0.15)
-                  : alpha("#2196f3", 0.1),
-                color: "#2196f3",
-                boxShadow: "none",
-                px: 2,
-                "&:hover": {
-                  bgcolor: isDark
-                    ? alpha("#2196f3", 0.25)
-                    : alpha("#2196f3", 0.2),
-                  boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-                },
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              Importar
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleExportFlow}
-              startIcon={<FileDownload />}
-              sx={{
-                textTransform: "none",
-                fontWeight: 500,
-                borderRadius: "8px",
-                bgcolor: isDark
-                  ? alpha("#9c27b0", 0.15)
-                  : alpha("#9c27b0", 0.1),
-                color: "#9c27b0",
-                boxShadow: "none",
-                px: 2,
-                "&:hover": {
-                  bgcolor: isDark
-                    ? alpha("#9c27b0", 0.25)
-                    : alpha("#9c27b0", 0.2),
-                  boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-                },
-              }}
-            >
-              Exportar
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={saveFlow}
-              startIcon={<Save />}
-              disabled={saveLoading}
-              sx={{
-                textTransform: "none",
-                fontWeight: 500,
-                borderRadius: "8px",
-                bgcolor: hasUnsavedChanges
-                  ? colorPrimary()
-                  : isDark
-                  ? alpha(colorPrimary(), 0.15)
-                  : alpha(colorPrimary(), 0.1),
-                color: hasUnsavedChanges ? "#FFF" : colorPrimary(),
-                boxShadow: hasUnsavedChanges
-                  ? "0 4px 8px rgba(0,0,0,0.15)"
-                  : "none",
-                px: 2,
-                "&:hover": {
-                  bgcolor: hasUnsavedChanges
-                    ? alpha(colorPrimary(), 0.9)
-                    : isDark
-                    ? alpha(colorPrimary(), 0.25)
-                    : alpha(colorPrimary(), 0.2),
-                  boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-                },
-              }}
-            >
-              {saveLoading ? "Salvando..." : "Salvar"}
-            </Button>
-          </Stack>
-
-          {/* Área do fluxo */}
-          <Box
-            sx={{
-              width: "100%",
-              height: "100%",
-              position: "relative",
-            }}
-          >
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              deleteKeyCode={["Backspace", "Delete"]}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onNodeDoubleClick={doubleClick}
-              onNodeClick={clickNode}
-              onEdgeClick={clickEdge}
-              onConnect={onConnect}
-              nodeTypes={nodeTypes}
-              fitView
-              connectionLineStyle={connectionLineStyle}
-              style={{
-                backgroundColor: isDark ? alpha("#151718", 0.95) : "#F8F9FA",
-              }}
-              edgeTypes={edgeTypes}
-              defaultEdgeOptions={{
-                style: {
-                  stroke: isDark ? "#6b6b6b" : "#2b2b2b",
-                  strokeWidth: "2px",
-                },
-                animated: true,
-                type: "buttonedge",
-              }}
-            >
-              {/* Minimap personalizado */}
-              <MiniMap
-                nodeStrokeColor={(n) => {
-                  if (n.selected) return colorPrimary();
-                  return isDark ? "#444" : "#ddd";
-                }}
-                nodeColor={(n) => {
-                  if (n.type === "start") return "#3ABA38";
-                  if (n.type === "message") return "#EC5858";
-                  if (n.type === "menu") return "#683AC8";
-                  if (n.type === "interval") return "#F7953B";
-                  if (n.type === "randomizer") return "#1FBADC";
-                  return isDark ? "#333" : "#eee";
-                }}
-                nodeBorderRadius={8}
-                style={{
-                  backgroundColor: isDark
-                    ? alpha("#1E2021", 0.8)
-                    : alpha("#FFFFFF", 0.8),
-                  border: isDark
-                    ? `1px solid ${alpha("#FFFFFF", 0.1)}`
-                    : "1px solid rgba(0,0,0,0.05)",
-                  borderRadius: "8px",
-                  right: 12,
-                  bottom: 12,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              <CircularProgress
+                size={80}
+                thickness={4}
+                sx={{
+                  color: "#667eea",
+                  filter: "drop-shadow(0 0 10px rgba(102, 126, 234, 0.6))",
                 }}
               />
-
-              {/* Controles personalizados */}
-              <Controls
-                style={{
-                  backgroundColor: isDark
-                    ? alpha("#1E2021", 0.8)
-                    : alpha("#FFFFFF", 0.8),
-                  border: isDark
-                    ? `1px solid ${alpha("#FFFFFF", 0.1)}`
-                    : "1px solid rgba(0,0,0,0.05)",
-                  borderRadius: "8px",
-                  left: 12,
-                  bottom: 12,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                  button: {
-                    backgroundColor: isDark
-                      ? alpha("#1E2021", 0.8)
-                      : alpha("#FFFFFF", 0.8),
-                    color: isDark ? "#FFFFFF" : "#333333",
-                    borderRadius: "6px",
-                    border: "none",
-                    "&:hover": {
-                      backgroundColor: isDark
-                        ? alpha("#333", 0.8)
-                        : alpha("#F5F5F5", 0.8),
-                    },
-                  },
-                }}
-              />
-
-              {/* Background com grid */}
-              <Background
-                variant={showGrid ? "dots" : "none"}
-                gap={12}
-                size={1}
-                color={isDark ? "#333" : "#eee"}
-              />
-
-              {/* Grid Control */}
               <Box
                 sx={{
                   position: "absolute",
-                  top: 70,
-                  right: 20,
-                  zIndex: 10,
-                  bgcolor: isDark
-                    ? alpha("#1E2021", 0.8)
-                    : alpha("#FFFFFF", 0.8),
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                  borderRadius: "8px",
-                  border: isDark
-                    ? `1px solid ${alpha("#FFFFFF", 0.1)}`
-                    : "1px solid rgba(0,0,0,0.05)",
-                  overflow: "hidden",
+                  background: `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`,
+                  borderRadius: "50%",
+                  p: 2,
                 }}
               >
-                <IconButton
-                  onClick={() => setShowGrid(!showGrid)}
+                <Speed sx={{ color: "white", fontSize: 32 }} />
+              </Box>
+            </Box>
+            <Typography
+              variant="h6"
+              sx={{
+                color: isDark ? "rgba(255,255,255,0.8)" : "rgba(0,0,0,0.7)",
+                fontWeight: 600,
+              }}
+            >
+              Carregando seu fluxo...
+            </Typography>
+          </Stack>
+        </Fade>
+      ) : (
+        <Fade in={!loading} timeout={800}>
+          <Card
+            sx={{
+              flex: 1,
+              position: "relative",
+              ...modernStyles.glassmorphism,
+              margin: "8px 16px 16px 16px",
+              borderRadius: "24px",
+              overflow: "hidden",
+              backdropFilter: "blur(20px)",
+            }}
+            onScroll={handleScroll}
+          >
+            {/* Notification floating modernizada */}
+            <Slide direction="down" in={true} timeout={1000}>
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: "24px",
+                  left: "20%",
+                  transform: "translateX(-50%)",
+                  zIndex: 10,
+                  ...modernStyles.glassmorphism,
+                  borderRadius: "16px",
+                  py: 1.5,
+                  px: 3,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                }}
+              >
+                <Palette sx={{ color: "#667eea", fontSize: 20 }} />
+                <Typography
                   sx={{
-                    borderRadius: "8px",
-                    color: isDark ? "#FFFFFF" : "#333333",
-                    "&:hover": {
-                      bgcolor: isDark
-                        ? alpha("#333", 0.8)
-                        : alpha("#F5F5F5", 0.8),
-                    },
+                    color: isDark ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.8)",
+                    fontWeight: 600,
+                    fontSize: "14px",
                   }}
                 >
-                  {showGrid ? <GridOff /> : <GridOn />}
-                </IconButton>
+                  💡 Dica: Duplo clique para editar nós • Arraste para conectar
+                </Typography>
               </Box>
-            </ReactFlow>
-          </Box>
-        </Paper>
+            </Slide>
+
+            <SpeedDial
+              ariaLabel="Menu de ações"
+              sx={{
+                position: "absolute",
+                top: 16,
+                left: 16,
+                zIndex: 1000,
+                display: "flex",
+                "& .MuiFab-primary": {
+                  background: isDark
+                    ? "rgba(255, 255, 255, 0.05)"
+                    : "rgba(255, 255, 255, 0.8)",
+                  backdropFilter: "blur(10px)",
+                  border: isDark
+                    ? "1px solid rgba(255, 255, 255, 0.1)"
+                    : "1px solid rgba(0, 0, 0, 0.1)",
+                  borderRadius: "16px",
+                  width: 56,
+                  height: 56,
+                  boxShadow: isDark
+                    ? "0 4px 12px rgba(0,0,0,0.3)"
+                    : "0 4px 12px rgba(0,0,0,0.08)",
+                  color: isDark ? "#FFFFFF" : "#1F2A44",
+                  "&:hover": {
+                    background: isDark
+                      ? "rgba(255, 255, 255, 0.1)"
+                      : "rgba(255, 255, 255, 0.9)",
+                    transform: "scale(1.1)",
+                    boxShadow: isDark
+                      ? "0 6px 16px rgba(0,0,0,0.4)"
+                      : "0 6px 16px rgba(0,0,0,0.12)",
+                  },
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                },
+              }}
+              icon={<SpeedDialIcon sx={{ fontSize: 24 }} />}
+              direction="down"
+            >
+              {actions.map((action, index) => (
+                <SpeedDialAction
+                  key={action.name}
+                  icon={action.icon}
+                  tooltipTitle={
+                    <Typography
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        fontWeight: 600,
+                        fontSize: 14,
+                        color: isDark ? "#FFFFFF" : "#1F2A44",
+                      }}
+                    >
+                      {action.name}
+                    </Typography>
+                  }
+                  tooltipOpen
+                  tooltipPlacement="right"
+                  onClick={() => clickActions(action.type)}
+                  sx={{
+                    "& .MuiSpeedDialAction-fab": {
+                      background: action.color,
+                      color: "#FFFFFF",
+                      width: 48,
+                      height: 48,
+                      borderRadius: "12px",
+                      boxShadow: `0 4px 12px ${alpha(action.color, 0.4)}`,
+                      "&:hover": {
+                        transform: "scale(1.1)",
+                        boxShadow: `0 6px 16px ${alpha(action.color, 0.6)}`,
+                      },
+                      transition: `all 0.3s cubic-bezier(0.4, 0, 0.2, 1) ${
+                        index * 50
+                      }ms`,
+                    },
+                    "& .MuiSpeedDialAction-staticTooltipLabel": {
+                      background: isDark
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(255, 255, 255, 0.8)",
+                      backdropFilter: "blur(10px)",
+                      border: isDark
+                        ? "1px solid rgba(255, 255, 255, 0.1)"
+                        : "1px solid rgba(0, 0, 0, 0.1)",
+                      borderRadius: "12px",
+                      boxShadow: isDark
+                        ? "0 4px 12px rgba(0,0,0,0.3)"
+                        : "0 4px 12px rgba(0,0,0,0.08)",
+                    },
+                  }}
+                />
+              ))}
+            </SpeedDial>
+
+            {/* Botões de ação modernizados */}
+            <Slide direction="left" in={true} timeout={800}>
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{
+                  position: "absolute",
+                  top: 24,
+                  right: 24,
+                  zIndex: 10,
+                }}
+              >
+                <input
+                  type="file"
+                  id="import-flow-builder"
+                  accept=".json"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    if (e.target.files?.length) {
+                      handleImportFlow(e.target.files[0]);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+
+                <Tooltip title="Alternar tela cheia" placement="bottom">
+                  <IconButton
+                    onClick={toggleFullscreen}
+                    sx={{
+                      ...modernStyles.glassmorphism,
+                      borderRadius: "16px",
+                      p: 1.5,
+                      color: "#667eea",
+                      "&:hover": {
+                        transform: "translateY(-2px)",
+                        ...modernStyles.neonGlow,
+                      },
+                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    }}
+                  >
+                    {isFullscreen ? (
+                      <FullscreenExit sx={{ fontSize: 24 }} />
+                    ) : (
+                      <Fullscreen sx={{ fontSize: 24 }} />
+                    )}
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Alternar grid" placement="bottom">
+                  <IconButton
+                    onClick={() => setShowGrid(!showGrid)}
+                    sx={{
+                      ...modernStyles.glassmorphism,
+                      borderRadius: "16px",
+                      p: 1.5,
+                      color: "#667eea",
+                      "&:hover": {
+                        transform: "translateY(-2px)",
+                        ...modernStyles.neonGlow,
+                      },
+                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    }}
+                  >
+                    {showGrid ? (
+                      <GridOff sx={{ fontSize: 24 }} />
+                    ) : (
+                      <GridOn sx={{ fontSize: 24 }} />
+                    )}
+                  </IconButton>
+                </Tooltip>
+
+                <Button
+                  variant="contained"
+                  onClick={() =>
+                    document.getElementById("import-flow-builder").click()
+                  }
+                  startIcon={<FileUpload sx={{ fontSize: 20 }} />}
+                  sx={{
+                    background: `linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)`,
+                    color: "white",
+                    fontWeight: 600,
+                    borderRadius: "16px",
+                    px: 3,
+                    py: 1.5,
+                    textTransform: "none",
+                    boxShadow: "0 8px 25px rgba(79, 172, 254, 0.4)",
+                    border: "none",
+                    "&:hover": {
+                      transform: "translateY(-3px)",
+                      boxShadow: "0 12px 35px rgba(79, 172, 254, 0.6)",
+                      background: `linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)`,
+                    },
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                >
+                  Importar
+                </Button>
+
+                <Button
+                  variant="contained"
+                  onClick={handleExportFlow}
+                  startIcon={<FileDownload sx={{ fontSize: 20 }} />}
+                  sx={{
+                    background: `linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)`,
+                    color: "#4a5568",
+                    fontWeight: 600,
+                    borderRadius: "16px",
+                    px: 3,
+                    py: 1.5,
+                    textTransform: "none",
+                    boxShadow: "0 8px 25px rgba(168, 237, 234, 0.4)",
+                    border: "none",
+                    "&:hover": {
+                      transform: "translateY(-3px)",
+                      boxShadow: "0 12px 35px rgba(168, 237, 234, 0.6)",
+                      background: `linear-gradient(135deg, #fed6e3 0%, #a8edea 100%)`,
+                    },
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                >
+                  Exportar
+                </Button>
+
+                <Button
+                  variant="contained"
+                  onClick={saveFlow}
+                  disabled={saveLoading}
+                  startIcon={
+                    saveLoading ? (
+                      <CircularProgress size={20} sx={{ color: "white" }} />
+                    ) : (
+                      <Save sx={{ fontSize: 20 }} />
+                    )
+                  }
+                  sx={{
+                    background: hasUnsavedChanges
+                      ? `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`
+                      : `linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%)`,
+                    color: hasUnsavedChanges ? "white" : "#667eea",
+                    fontWeight: 600,
+                    borderRadius: "16px",
+                    px: 3,
+                    py: 1.5,
+                    textTransform: "none",
+                    boxShadow: hasUnsavedChanges
+                      ? "0 8px 25px rgba(102, 126, 234, 0.4)"
+                      : "0 4px 15px rgba(0, 0, 0, 0.1)",
+                    border: hasUnsavedChanges
+                      ? "none"
+                      : "1px solid rgba(102, 126, 234, 0.3)",
+                    "&:hover": {
+                      transform: "translateY(-3px)",
+                      boxShadow: hasUnsavedChanges
+                        ? "0 12px 35px rgba(102, 126, 234, 0.6)"
+                        : "0 8px 25px rgba(102, 126, 234, 0.3)",
+                      background: hasUnsavedChanges
+                        ? `linear-gradient(135deg, #764ba2 0%, #667eea 100%)`
+                        : `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`,
+                      color: "white",
+                    },
+                    "&:disabled": {
+                      background: "rgba(0, 0, 0, 0.12)",
+                      color: "rgba(0, 0, 0, 0.26)",
+                      transform: "none",
+                    },
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                >
+                  {saveLoading ? "Salvando..." : "Salvar Fluxo"}
+                </Button>
+              </Stack>
+            </Slide>
+
+            {/* Área do fluxo modernizada */}
+            <Box
+              sx={{
+                width: "100%",
+                height: "100%",
+                position: "relative",
+                borderRadius: "24px",
+                overflow: "hidden",
+              }}
+            >
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                deleteKeyCode={["Backspace", "Delete"]}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onNodeDoubleClick={doubleClick}
+                onNodeClick={clickNode}
+                onEdgeClick={clickEdge}
+                onConnect={onConnect}
+                nodeTypes={nodeTypes}
+                onNodeAction={handleNodeAction}
+                fitView
+                connectionLineStyle={connectionLineStyle}
+                style={{
+                  background: isDark
+                    ? `linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%)`
+                    : `linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%)`,
+                  borderRadius: "24px",
+                }}
+                edgeTypes={edgeTypes}
+                defaultEdgeOptions={{
+                  style: {
+                    stroke: isDark ? "#3b82f6" : "#1e40af",
+                    strokeWidth: "3px",
+                    filter: "drop-shadow(0 0 6px rgba(59, 130, 246, 0.6))",
+                  },
+                  animated: true,
+                  type: "buttonedge",
+                }}
+              >
+                {/* MiniMap modernizado */}
+                <MiniMap
+                  nodeStrokeColor={(n) => {
+                    if (n.selected) return "#3b82f6";
+                    return isDark ? "#4a5568" : "#cbd5e0";
+                  }}
+                  nodeColor={(n) => {
+                    const colors = {
+                      start: "#667eea",
+                      message: "#f5576c",
+                      menu: "#4facfe",
+                      interval: "#fa709a",
+                      randomizer: "#43e97b",
+                      httpRequest: "#667eea",
+                      ticket: "#a8edea",
+                      typebot: "#667eea",
+                      openai: "#fcb69f",
+                      question: "#a18cd1",
+                    };
+                    return colors[n.type] || (isDark ? "#4a5568" : "#e2e8f0");
+                  }}
+                  nodeBorderRadius={12}
+                  style={{
+                    ...modernStyles.glassmorphism,
+                    borderRadius: "16px",
+                    right: 24,
+                    bottom: 24,
+                    overflow: "hidden",
+                  }}
+                />
+
+                {/* Controles modernizados */}
+                <Controls
+                  style={{
+                    ...modernStyles.glassmorphism,
+                    borderRadius: "16px",
+                    left: 24,
+                    bottom: 24,
+                    overflow: "hidden",
+                  }}
+                />
+
+                {/* Background com padrão moderno */}
+                <Background
+                  variant={showGrid ? "dots" : "none"}
+                  gap={20}
+                  size={2}
+                  color={isDark ? "#374151" : "#cbd5e0"}
+                  style={{
+                    opacity: 0.5,
+                  }}
+                />
+              </ReactFlow>
+            </Box>
+          </Card>
+        </Fade>
       )}
 
-      {/* Estilos CSS globais */}
+      {/* Estilos CSS globais modernos */}
       <style jsx global>{`
         .react-flow__node {
-          transition: all 0.2s ease;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          border-radius: 16px !important;
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .react-flow__node:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
         }
 
         .react-flow__node.selected,
         .react-flow__node:focus {
-          box-shadow: 0 0 0 2px ${colorPrimary()};
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5),
+            0 0 20px rgba(59, 130, 246, 0.3);
+          border: 2px solid #3b82f6;
         }
 
         .react-flow__edge {
-          transition: stroke 0.2s ease;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .react-flow__edge.selected .react-flow__edge-path,
         .react-flow__edge:focus .react-flow__edge-path {
-          stroke: ${colorPrimary()} !important;
-          stroke-width: 3px !important;
+          stroke: #3b82f6 !important;
+          stroke-width: 4px !important;
+          filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8));
+        }
+
+        .react-flow__edge:hover .react-flow__edge-path {
+          stroke: #60a5fa !important;
+          stroke-width: 4px !important;
+          filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.6));
         }
 
         .react-flow__handle {
-          background-color: ${colorPrimary()};
-          width: 8px;
-          height: 8px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          width: 12px;
+          height: 12px;
           border-radius: 50%;
-          border: none;
+          border: 3px solid white;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .react-flow__handle:hover {
+          transform: scale(1.3);
+          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
         }
 
         .react-flow__attribution {
@@ -1251,47 +1570,86 @@ export const FlowBuilderConfig = () => {
         }
 
         .react-flow__minimap {
-          border-radius: 8px;
+          border-radius: 16px;
           overflow: hidden;
+          backdropfilter: blur(20px);
         }
 
-        .react-flow__panel {
-          border-radius: 8px;
+        .react-flow__controls {
+          border-radius: 16px;
           overflow: hidden;
-          transition: all 0.3s ease;
+          backdropfilter: blur(20px);
         }
 
         .react-flow__controls button {
-          border-radius: 6px;
-          margin: 2px 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s ease;
-        }
-
-        .react-flow__controls button svg {
-          fill: ${isDark ? "#FFFFFF" : "#333333"};
+          border-radius: 12px;
+          margin: 4px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          background: transparent;
+          color: ${isDark ? "#ffffff" : "#4a5568"};
+          border: none;
         }
 
         .react-flow__controls button:hover {
-          background-color: ${isDark
-            ? alpha("#333", 0.8)
-            : alpha("#F5F5F5", 0.8)};
+          transform: scale(1.1);
+          background: ${isDark
+            ? "rgba(255, 255, 255, 0.1)"
+            : "rgba(102, 126, 234, 0.1)"};
+          color: #667eea;
+        }
+
+        .react-flow__controls button svg {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Animações de entrada para nós */
+        @keyframes nodeAppear {
+          0% {
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
         }
 
         .react-flow__node-default,
         .react-flow__node-input,
         .react-flow__node-output {
-          border-radius: 8px;
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-          padding: 10px 15px;
-          transition: all 0.3s ease;
+          animation: nodeAppear 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        span.MuiSpeedDialIcon-root.css-27nu2n-MuiSpeedDialIcon-root {
+          display: flex;
+        }
+        /* Efeitos de hover nos botões */
+        .MuiButton-root {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
 
-        .react-flow__node:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        .MuiSpeedDial-fab {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+
+        /* Scrollbar customizada */
+        ::-webkit-scrollbar {
+          width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: ${isDark
+            ? "rgba(255, 255, 255, 0.1)"
+            : "rgba(0, 0, 0, 0.1)"};
+          border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
         }
       `}</style>
     </Box>

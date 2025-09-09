@@ -780,8 +780,6 @@ const messages = {
           filterUsers: "Filtro por Usuarios",
           filterContacts: "Filtro por Contatos",
           ticketsPerPage: "Tickets por página",
-          includeMessages: "Incluir mensagens na busca",
-
         },
         buttons: {
           showAll: "Todos",
@@ -789,20 +787,10 @@ const messages = {
           scredule: "Agendamento",
           deleteTicket: "Deletar Ticket",
           quickmessageflash: "Mensagem Rápida",
-          newTicket: "Novo Ticket",
-          resolved: "Resolver",
-          resolveAll: "Resolver Todos",
-          open: "Abrir",
-          ascending: "Ascendente",
-          descending: "Descendente",
         },
         closedTicket: {
           closedMessage: "Fechar Ticket Com Mensagem de Despedida",
           closedNotMessage: "Fechar Ticket Sem Mensagem de Despedida",
-        },
-        filters: {
-          enable: "Habilitar busca avançada",
-          disable: "Desabilitar busca avançada",
         },
       },
       transferTicketModal: {
@@ -1092,12 +1080,6 @@ const messages = {
           list: "Painel",
           tags: "Lanes",
         },
-      },
-      tagKanban: {
-        title: "Etiquetas",
-        stages: "Etiqueta",
-        noStage: "Nenhuma Etiqueta",
-
       },
 
       campaigns: {

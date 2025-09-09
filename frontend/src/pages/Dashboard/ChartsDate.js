@@ -17,6 +17,7 @@ import Typography from "@material-ui/core/Typography";
 import api from "../../services/api";
 import { format } from "date-fns";
 import { toast } from "react-toastify";
+import "./button.css";
 import { i18n } from "../../translate/i18n";
 import { AuthContext } from "../../context/Auth/AuthContext";
 import { useTheme } from "@material-ui/core";
@@ -30,12 +31,41 @@ ChartJS.register(
   Legend
 );
 
+export const options = {
+  responsive: true,
+  plugins: {
+    legend: {
+      position: "top",
+      display: false,
+    },
+    title: {
+      display: true,
+      text: "Tickets",
+      position: "left",
+    },
+    datalabels: {
+      display: true,
+      anchor: "start",
+      offset: -30,
+      align: "start",
+      color: "#fff",
+      textStrokeColor: "#000",
+      textStrokeWidth: 2,
+      font: {
+        size: 20,
+        weight: "bold",
+      },
+    },
+  },
+};
+
 export const ChartsDate = () => {
   const theme = useTheme();
   const [initialDate, setInitialDate] = useState(new Date());
   const [finalDate, setFinalDate] = useState(new Date());
   const [ticketsData, setTicketsData] = useState({ data: [], count: 0 });
   const { user } = useContext(AuthContext);
+
   const companyId = user.companyId;
 
   useEffect(() => {
@@ -44,85 +74,24 @@ export const ChartsDate = () => {
     }
   }, [companyId]);
 
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: theme.palette.background.paper,
-        titleColor: theme.palette.text.primary,
-        bodyColor: theme.palette.text.secondary,
-        borderColor: theme.palette.divider,
-        borderWidth: 1,
-        padding: 12,
-        bodyFont: {
-          weight: "500",
-        },
-        titleFont: {
-          size: 14,
-          weight: "600",
-        },
-      },
-      title: {
-        display: true,
-        text: "TICKETS",
-        position: "left",
-        color: theme.palette.text.secondary,
-        font: {
-          size: 12,
-          weight: "600",
-        },
-        padding: {
-          bottom: 20,
-        },
-      },
-    },
-    scales: {
-      x: {
-        grid: {
-          display: false,
-          drawBorder: false,
-        },
-        ticks: {
-          color: theme.palette.text.secondary,
-          font: {
-            weight: "500",
-          },
-        },
-      },
-      y: {
-        grid: {
-          color: theme.palette.divider,
-          drawBorder: false,
-        },
-        ticks: {
-          color: theme.palette.text.secondary,
-          padding: 8,
-        },
-      },
-    },
-    animation: {
-      duration: 1000,
-    },
-  };
-
   const dataCharts = {
-    labels: ticketsData?.data.map((item) =>
-      item.hasOwnProperty("horario")
-        ? `${item.horario}:00-${item.horario}:59`
-        : item.data
-    ),
+    labels:
+      ticketsData &&
+      ticketsData?.data.length > 0 &&
+      ticketsData?.data.map((item) =>
+        item.hasOwnProperty("horario")
+          ? `Das ${item.horario}:00 as ${item.horario}:59`
+          : item.data
+      ),
     datasets: [
       {
-        data: ticketsData?.data.map((item) => item.total),
+        // label: 'Dataset 1',
+        data:
+          ticketsData?.data.length > 0 &&
+          ticketsData?.data.map((item, index) => {
+            return item.total;
+          }),
         backgroundColor: theme.palette.primary.main,
-        hoverBackgroundColor: theme.palette.primary.dark,
-        borderRadius: 6,
-        borderSkipped: false,
-        barThickness: 24,
       },
     ],
   };
@@ -142,126 +111,61 @@ export const ChartsDate = () => {
   };
 
   return (
-    <div style={{ padding: "24px 16px" }}>
-      <Typography
-        component="h2"
-        variant="h6"
-        style={{
-          color: theme.palette.text.primary,
-          marginBottom: 24,
-          fontWeight: 600,
-          fontSize: "1.1rem",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        {i18n.t("dashboard.users.totalAttendances")}
-        <span
-          style={{
-            color: theme.palette.primary.main,
-            marginLeft: 8,
-            fontWeight: 700,
-          }}
-        >
-          ({ticketsData?.count})
-        </span>
+    <>
+      <Typography component="h2" variant="h6" color="primary" gutterBottom>
+        {i18n.t("Total")} ({ticketsData?.count})
       </Typography>
 
-      <Grid container spacing={2} style={{ marginBottom: 24 }}>
-        <Grid item xs={12} sm={6} md={4}>
+      <Grid container spacing={2}>
+        <Grid item>
           <LocalizationProvider
             dateAdapter={AdapterDateFns}
             adapterLocale={brLocale}
           >
             <DatePicker
               value={initialDate}
-              onChange={setInitialDate}
+              onChange={(newValue) => {
+                setInitialDate(newValue);
+              }}
               label={i18n.t("dashboard.date.initialDate")}
               renderInput={(params) => (
-                <TextField
-                  {...params}
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  style={{
-                    backgroundColor: theme.palette.background.paper,
-                  }}
-                  inputProps={{
-                    style: {
-                      padding: "12px 14px",
-                      color: theme.palette.text.primary,
-                    },
-                  }}
-                  InputLabelProps={{
-                    style: {
-                      color: theme.palette.text.secondary,
-                    },
-                  }}
-                />
+                <TextField fullWidth {...params} sx={{ width: "20ch" }} />
               )}
             />
           </LocalizationProvider>
         </Grid>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid item>
           <LocalizationProvider
             dateAdapter={AdapterDateFns}
             adapterLocale={brLocale}
           >
             <DatePicker
               value={finalDate}
-              onChange={setFinalDate}
+              onChange={(newValue) => {
+                setFinalDate(newValue);
+              }}
               label={i18n.t("dashboard.date.finalDate")}
               renderInput={(params) => (
-                <TextField
-                  {...params}
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  style={{
-                    backgroundColor: theme.palette.background.paper,
-                  }}
-                  inputProps={{
-                    style: {
-                      padding: "12px 14px",
-                      color: theme.palette.text.primary,
-                    },
-                  }}
-                  InputLabelProps={{
-                    style: {
-                      color: theme.palette.text.secondary,
-                    },
-                  }}
-                />
+                <TextField fullWidth {...params} sx={{ width: "20ch" }} />
               )}
             />
           </LocalizationProvider>
         </Grid>
-        <Grid item xs={12} sm={12} md={4}>
+        <Grid item>
           <Button
-            variant="contained"
+            style={{ backgroundColor: theme.palette.primary.main, top: "10px" }}
             onClick={handleGetTicketsInformation}
-            fullWidth
-            style={{
-              backgroundColor: theme.palette.primary.main,
-              color: theme.palette.primary.contrastText,
-              height: "40px",
-              fontWeight: 600,
-              fontSize: "0.875rem",
-              textTransform: "none",
-              boxShadow: "none",
-              borderRadius: "8px",
-            }}
+            variant="contained"
           >
             Filtrar
           </Button>
         </Grid>
       </Grid>
-
-      <div style={{ height: "400px", marginTop: "16px" }}>
-        <Bar options={options} data={dataCharts} />
-      </div>
-    </div>
+      <Bar
+        options={options}
+        data={dataCharts}
+        style={{ maxWidth: "100%", maxHeight: "280px" }}
+      />
+    </>
   );
 };
-
-export default ChartsDate;

@@ -16,7 +16,6 @@ import {
   Chip,
 } from "@mui/material";
 
-// Import icons from Material UI
 import {
   DashboardOutlined,
   WhatsApp,
@@ -65,7 +64,7 @@ import useVersion from "../hooks/useVersion";
 import { i18n } from "../translate/i18n";
 import moment from "moment";
 
-// Paleta de cores modernas com gradientes
+// Paleta de cores modernas com gradientes - SEMPRE COLORIDOS
 const iconStyles = {
   dashboard: {
     color: "#6366f1",
@@ -158,7 +157,8 @@ const iconStyles = {
 };
 
 function ListItemLink(props) {
-  const { icon, primary, to, tooltip, showBadge, iconKey, small } = props;
+  const { icon, primary, to, tooltip, showBadge, iconKey, small, collapsed } =
+    props;
   const theme = useTheme();
   const { activeMenu } = useActiveMenu();
   const location = useLocation();
@@ -184,7 +184,7 @@ function ListItemLink(props) {
   const iconStyle = iconStyles[iconKey] || iconStyles.dashboard;
 
   return (
-    <ConditionalTooltip tooltipEnabled={!!tooltip}>
+    <ConditionalTooltip tooltipEnabled={collapsed}>
       <li>
         <ListItem
           button
@@ -194,12 +194,14 @@ function ListItemLink(props) {
             mx: 1,
             my: 0.5,
             minHeight: small ? 40 : 48,
-            pl: small ? 4 : 2,
+            pl: collapsed ? 2 : small ? 4 : 2,
+            pr: collapsed ? 2 : "auto",
+            justifyContent: collapsed ? "center" : "flex-start",
             position: "relative",
             overflow: "hidden",
-            background: isActive ? alpha(iconStyle.color, 0.1) : "transparent",
+            background: isActive ? alpha(iconStyle.color, 0.15) : "transparent",
             "&:hover": {
-              background: alpha(iconStyle.color, 0.08),
+              background: alpha(iconStyle.color, 0.1),
             },
             "&::before": isActive
               ? {
@@ -216,7 +218,12 @@ function ListItemLink(props) {
           }}
         >
           {icon && (
-            <ListItemIcon sx={{ minWidth: 40 }}>
+            <ListItemIcon
+              sx={{
+                minWidth: collapsed ? "auto" : 40,
+                justifyContent: "center",
+              }}
+            >
               {showBadge ? (
                 <Badge
                   badgeContent="!"
@@ -236,7 +243,10 @@ function ListItemLink(props) {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: iconStyle.color,
+                      color: iconStyle.color + " !important", // Força a cor sempre
+                      "& svg": {
+                        color: iconStyle.color + " !important", // Força a cor do SVG
+                      },
                     }}
                   >
                     {icon}
@@ -248,7 +258,10 @@ function ListItemLink(props) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: iconStyle.color,
+                    color: iconStyle.color + " !important", // Força a cor sempre
+                    "& svg": {
+                      color: iconStyle.color + " !important", // Força a cor do SVG
+                    },
                   }}
                 >
                   {icon}
@@ -256,19 +269,23 @@ function ListItemLink(props) {
               )}
             </ListItemIcon>
           )}
-          <ListItemText
-            primary={
-              <Typography
-                sx={{
-                  fontSize: "0.875rem",
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? iconStyle.color : "#777",
-                }}
-              >
-                {primary}
-              </Typography>
-            }
-          />
+          {!collapsed && (
+            <ListItemText
+              primary={
+                <Typography
+                  sx={{
+                    fontSize: "0.875rem",
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive
+                      ? iconStyle.color
+                      : theme.palette.text.primary,
+                  }}
+                >
+                  {primary}
+                </Typography>
+              }
+            />
+          )}
         </ListItem>
       </li>
     </ConditionalTooltip>
@@ -387,6 +404,15 @@ const MainListItems = ({ collapsed, drawerClose }) => {
     }
   }, [location, setActiveMenu]);
 
+  // Fechar submenus quando a sidebar for retraída
+  useEffect(() => {
+    if (collapsed) {
+      setOpenCampaignSubmenu(false);
+      setOpenFlowSubmenu(false);
+      setOpenDashboardSubmenu(false);
+    }
+  }, [collapsed]);
+
   const { getPlanCompany } = usePlans();
   const { getVersion } = useVersion();
 
@@ -497,22 +523,23 @@ const MainListItems = ({ collapsed, drawerClose }) => {
     }
   };
 
-  // Section Header Component
-  const SectionHeader = ({ children }) => (
-    <Typography
-      sx={{
-        fontWeight: 700,
-        fontSize: "0.75rem",
-        textTransform: "uppercase",
-        color: "#777",
-        padding: "16px 16px 8px",
-        lineHeight: 1,
-        letterSpacing: "0.5px",
-      }}
-    >
-      {children}
-    </Typography>
-  );
+  // Section Header Component - só aparece quando expandido
+  const SectionHeader = ({ children }) =>
+    !collapsed && (
+      <Typography
+        sx={{
+          fontWeight: 700,
+          fontSize: "0.75rem",
+          textTransform: "uppercase",
+          color: theme.palette.text.secondary,
+          padding: "16px 16px 8px",
+          lineHeight: 1,
+          letterSpacing: "0.5px",
+        }}
+      >
+        {children}
+      </Typography>
+    );
 
   // Submenu Item Component
   const SubmenuItem = ({ to, primary, icon, iconKey }) => (
@@ -522,9 +549,101 @@ const MainListItems = ({ collapsed, drawerClose }) => {
       primary={primary}
       icon={icon}
       iconKey={iconKey}
-      tooltip={collapsed}
+      collapsed={collapsed}
     />
   );
+
+  // Componente para itens com submenu
+  const ExpandableMenuItem = ({
+    icon,
+    primary,
+    iconKey,
+    isActive,
+    isOpen,
+    onToggle,
+    children,
+  }) => {
+    const iconStyle = iconStyles[iconKey] || iconStyles.dashboard;
+
+    if (collapsed) {
+      // Quando colapsado, não mostra submenus
+      return null;
+    }
+
+    return (
+      <>
+        <Tooltip title={collapsed ? primary : ""} placement="right">
+          <ListItem
+            button
+            onClick={onToggle}
+            sx={{
+              borderRadius: 2,
+              mx: 1,
+              my: 0.5,
+              minHeight: 48,
+              background: isActive
+                ? alpha(iconStyle.color, 0.15)
+                : "transparent",
+              "&:hover": {
+                background: alpha(iconStyle.color, 0.1),
+              },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: iconStyle.color + " !important",
+                  "& svg": {
+                    color: iconStyle.color + " !important",
+                  },
+                }}
+              >
+                {icon}
+              </Box>
+            </ListItemIcon>
+            <ListItemText
+              primary={
+                <Typography
+                  sx={{
+                    fontSize: "0.875rem",
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive
+                      ? iconStyle.color
+                      : theme.palette.text.primary,
+                  }}
+                >
+                  {primary}
+                </Typography>
+              }
+            />
+            {isOpen ? (
+              <ExpandLess sx={{ color: theme.palette.text.secondary }} />
+            ) : (
+              <ExpandMore sx={{ color: theme.palette.text.secondary }} />
+            )}
+          </ListItem>
+        </Tooltip>
+
+        <Collapse
+          in={isOpen}
+          timeout="auto"
+          unmountOnExit
+          sx={{
+            backgroundColor: alpha(theme.palette.background.default, 0.5),
+            mx: 1,
+            borderRadius: 2,
+          }}
+        >
+          <List dense component="div" disablePadding>
+            {children}
+          </List>
+        </Collapse>
+      </>
+    );
+  };
 
   return (
     <div onClick={drawerClose}>
@@ -538,116 +657,55 @@ const MainListItems = ({ collapsed, drawerClose }) => {
           }
           perform={"drawer-admin-items:view"}
           yes={() => (
-            <>
-              <Tooltip
-                title={
-                  collapsed ? i18n.t("mainDrawer.listItems.management") : ""
+            <ExpandableMenuItem
+              icon={<DashboardOutlined />}
+              primary={i18n.t("mainDrawer.listItems.management")}
+              iconKey="dashboard"
+              isActive={isManagementActive}
+              isOpen={openDashboardSubmenu}
+              onToggle={() => setOpenDashboardSubmenu((prev) => !prev)}
+            >
+              <Can
+                role={
+                  user.profile === "user" && user.showDashboard === "enabled"
+                    ? "admin"
+                    : user.profile
                 }
-                placement="right"
-              >
-                <ListItem
-                  button
-                  onClick={() => setOpenDashboardSubmenu((prev) => !prev)}
-                  sx={{
-                    borderRadius: 2,
-                    mx: 1,
-                    my: 0.5,
-                    minHeight: 48,
-                    background: isManagementActive
-                      ? alpha(iconStyles.dashboard.color, 0.1)
-                      : "transparent",
-                    "&:hover": {
-                      background: alpha(iconStyles.dashboard.color, 0.08),
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 40 }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: iconStyles.dashboard.color,
-                      }}
-                    >
-                      <DashboardOutlined />
-                    </Box>
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography
-                        sx={{
-                          fontSize: "0.875rem",
-                          fontWeight: isManagementActive ? 600 : 500,
-                          color: isManagementActive
-                            ? iconStyles.dashboard.color
-                            : "#777",
-                        }}
-                      >
-                        {i18n.t("mainDrawer.listItems.management")}
-                      </Typography>
-                    }
-                  />
-                  {openDashboardSubmenu ? (
-                    <ExpandLess sx={{ color: "#777" }} />
-                  ) : (
-                    <ExpandMore sx={{ color: "#777" }} />
-                  )}
-                </ListItem>
-              </Tooltip>
-
-              <Collapse
-                in={openDashboardSubmenu}
-                timeout="auto"
-                unmountOnExit
-                sx={{
-                  backgroundColor: alpha("#000000", 0.02),
-                  mx: 1,
-                  borderRadius: 2,
-                }}
-              >
-                <Can
-                  role={
-                    user.profile === "user" && user.showDashboard === "enabled"
-                      ? "admin"
-                      : user.profile
-                  }
-                  perform={"drawer-admin-items:view"}
-                  yes={() => (
-                    <>
-                      <SubmenuItem
-                        to="/"
-                        primary="Dashboard"
-                        icon={<DashboardOutlined />}
-                        iconKey="dashboard"
-                      />
-                      <SubmenuItem
-                        to="/reports"
-                        primary={i18n.t("mainDrawer.listItems.reports")}
-                        icon={<DescriptionRounded />}
-                        iconKey="dashboard"
-                      />
-                    </>
-                  )}
-                />
-                <Can
-                  role={
-                    user.profile === "user" && user.allowRealTime === "enabled"
-                      ? "admin"
-                      : user.profile
-                  }
-                  perform={"drawer-admin-items:view"}
-                  yes={() => (
+                perform={"drawer-admin-items:view"}
+                yes={() => (
+                  <>
                     <SubmenuItem
-                      to="/moments"
-                      primary={i18n.t("mainDrawer.listItems.chatsTempoReal")}
-                      icon={<GridOnRounded />}
+                      to="/"
+                      primary="Dashboard"
+                      icon={<DashboardOutlined />}
                       iconKey="dashboard"
                     />
-                  )}
-                />
-              </Collapse>
-            </>
+                    <SubmenuItem
+                      to="/reports"
+                      primary={i18n.t("mainDrawer.listItems.reports")}
+                      icon={<DescriptionRounded />}
+                      iconKey="dashboard"
+                    />
+                  </>
+                )}
+              />
+              <Can
+                role={
+                  user.profile === "user" && user.allowRealTime === "enabled"
+                    ? "admin"
+                    : user.profile
+                }
+                perform={"drawer-admin-items:view"}
+                yes={() => (
+                  <SubmenuItem
+                    to="/moments"
+                    primary={i18n.t("mainDrawer.listItems.chatsTempoReal")}
+                    icon={<GridOnRounded />}
+                    iconKey="dashboard"
+                  />
+                )}
+              />
+            </ExpandableMenuItem>
           )}
         />
       )}
@@ -658,7 +716,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
           primary={i18n.t("mainDrawer.listItems.tickets")}
           icon={<WhatsApp />}
           iconKey="tickets"
-          tooltip={collapsed}
+          collapsed={collapsed}
         />
       )}
 
@@ -668,7 +726,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
           primary={i18n.t("mainDrawer.listItems.quickMessages")}
           icon={<FlashOn />}
           iconKey="messages"
-          tooltip={collapsed}
+          collapsed={collapsed}
         />
       )}
 
@@ -678,7 +736,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
           primary={i18n.t("mainDrawer.listItems.kanban")}
           icon={<ViewKanban />}
           iconKey="kanban"
-          tooltip={collapsed}
+          collapsed={collapsed}
         />
       )}
 
@@ -688,7 +746,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
           primary={i18n.t("mainDrawer.listItems.contacts")}
           icon={<ContactPhoneOutlined />}
           iconKey="contacts"
-          tooltip={collapsed}
+          collapsed={collapsed}
         />
       )}
 
@@ -698,7 +756,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
           primary={i18n.t("mainDrawer.listItems.schedules")}
           icon={<Schedule />}
           iconKey="schedules"
-          tooltip={collapsed}
+          collapsed={collapsed}
         />
       )}
 
@@ -708,7 +766,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
           primary={i18n.t("mainDrawer.listItems.tags")}
           icon={<LocalOffer />}
           iconKey="tags"
-          tooltip={collapsed}
+          collapsed={collapsed}
         />
       )}
 
@@ -731,7 +789,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
             </Badge>
           }
           iconKey="chats"
-          tooltip={collapsed}
+          collapsed={collapsed}
         />
       )}
 
@@ -741,7 +799,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
           primary={i18n.t("mainDrawer.listItems.helps")}
           icon={<HelpOutline />}
           iconKey="helps"
-          tooltip={collapsed}
+          collapsed={collapsed}
         />
       )}
 
@@ -764,98 +822,33 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                 role={user.profile}
                 perform="dashboard:view"
                 yes={() => (
-                  <>
-                    <Tooltip
-                      title={
-                        collapsed
-                          ? i18n.t("mainDrawer.listItems.campaigns")
-                          : ""
-                      }
-                      placement="right"
-                    >
-                      <ListItem
-                        button
-                        onClick={() => setOpenCampaignSubmenu((prev) => !prev)}
-                        sx={{
-                          borderRadius: 2,
-                          mx: 1,
-                          my: 0.5,
-                          minHeight: 48,
-                          background: isCampaignRouteActive
-                            ? alpha(iconStyles.campaigns.color, 0.1)
-                            : "transparent",
-                          "&:hover": {
-                            background: alpha(iconStyles.campaigns.color, 0.08),
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 40 }}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              color: iconStyles.campaigns.color,
-                            }}
-                          >
-                            <Campaign />
-                          </Box>
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Typography
-                              sx={{
-                                fontSize: "0.875rem",
-                                fontWeight: isCampaignRouteActive ? 600 : 500,
-                                color: isCampaignRouteActive
-                                  ? iconStyles.campaigns.color
-                                  : "#777",
-                              }}
-                            >
-                              {i18n.t("mainDrawer.listItems.campaigns")}
-                            </Typography>
-                          }
-                        />
-                        {openCampaignSubmenu ? (
-                          <ExpandLess sx={{ color: "#777" }} />
-                        ) : (
-                          <ExpandMore sx={{ color: "#777" }} />
-                        )}
-                      </ListItem>
-                    </Tooltip>
-
-                    <Collapse
-                      in={openCampaignSubmenu}
-                      timeout="auto"
-                      unmountOnExit
-                      sx={{
-                        backgroundColor: alpha("#000000", 0.02),
-                        mx: 1,
-                        borderRadius: 2,
-                      }}
-                    >
-                      <List dense component="div" disablePadding>
-                        <SubmenuItem
-                          to="/campaigns"
-                          primary={i18n.t("campaigns.subMenus.list")}
-                          icon={<ListAlt />}
-                          iconKey="campaigns"
-                        />
-                        <SubmenuItem
-                          to="/contact-lists"
-                          primary={i18n.t("campaigns.subMenus.listContacts")}
-                          icon={<People />}
-                          iconKey="campaigns"
-                        />
-                        <SubmenuItem
-                          to="/campaigns-config"
-                          primary={i18n.t("campaigns.subMenus.settings")}
-                          icon={<SettingsOutlined />}
-                          iconKey="campaigns"
-                        />
-                      </List>
-                    </Collapse>
-                  </>
+                  <ExpandableMenuItem
+                    icon={<Campaign />}
+                    primary={i18n.t("mainDrawer.listItems.campaigns")}
+                    iconKey="campaigns"
+                    isActive={isCampaignRouteActive}
+                    isOpen={openCampaignSubmenu}
+                    onToggle={() => setOpenCampaignSubmenu((prev) => !prev)}
+                  >
+                    <SubmenuItem
+                      to="/campaigns"
+                      primary={i18n.t("campaigns.subMenus.list")}
+                      icon={<ListAlt />}
+                      iconKey="campaigns"
+                    />
+                    <SubmenuItem
+                      to="/contact-lists"
+                      primary={i18n.t("campaigns.subMenus.listContacts")}
+                      icon={<People />}
+                      iconKey="campaigns"
+                    />
+                    <SubmenuItem
+                      to="/campaigns-config"
+                      primary={i18n.t("campaigns.subMenus.settings")}
+                      icon={<SettingsOutlined />}
+                      iconKey="campaigns"
+                    />
+                  </ExpandableMenuItem>
                 )}
               />
             )}
@@ -865,93 +858,27 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                 role={user.profile}
                 perform="dashboard:view"
                 yes={() => (
-                  <>
-                    <Tooltip
-                      title={collapsed ? i18n.t("Flowbuilder") : ""}
-                      placement="right"
-                    >
-                      <ListItem
-                        button
-                        onClick={() => setOpenFlowSubmenu((prev) => !prev)}
-                        sx={{
-                          borderRadius: 2,
-                          mx: 1,
-                          my: 0.5,
-                          minHeight: 48,
-                          background: isFlowbuilderRouteActive
-                            ? alpha(iconStyles.flowbuilder.color, 0.1)
-                            : "transparent",
-                          "&:hover": {
-                            background: alpha(
-                              iconStyles.flowbuilder.color,
-                              0.08
-                            ),
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 40 }}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              color: iconStyles.flowbuilder.color,
-                            }}
-                          >
-                            <WebhookRounded />
-                          </Box>
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Typography
-                              sx={{
-                                fontSize: "0.875rem",
-                                fontWeight: isFlowbuilderRouteActive
-                                  ? 600
-                                  : 500,
-                                color: isFlowbuilderRouteActive
-                                  ? iconStyles.flowbuilder.color
-                                  : "#777",
-                              }}
-                            >
-                              {i18n.t("Flowbuilder")}
-                            </Typography>
-                          }
-                        />
-                        {openFlowSubmenu ? (
-                          <ExpandLess sx={{ color: "#777" }} />
-                        ) : (
-                          <ExpandMore sx={{ color: "#777" }} />
-                        )}
-                      </ListItem>
-                    </Tooltip>
-
-                    <Collapse
-                      in={openFlowSubmenu}
-                      timeout="auto"
-                      unmountOnExit
-                      sx={{
-                        backgroundColor: alpha("#000000", 0.02),
-                        mx: 1,
-                        borderRadius: 2,
-                      }}
-                    >
-                      <List dense component="div" disablePadding>
-                        <SubmenuItem
-                          to="/phrase-lists"
-                          primary="Fluxo de Campanha"
-                          icon={<EventAvailable />}
-                          iconKey="flowbuilder"
-                        />
-                        <SubmenuItem
-                          to="/flowbuilders"
-                          primary="Fluxo de conversa"
-                          icon={<ShapeLineRounded />}
-                          iconKey="flowbuilder"
-                        />
-                      </List>
-                    </Collapse>
-                  </>
+                  <ExpandableMenuItem
+                    icon={<WebhookRounded />}
+                    primary={i18n.t("Flowbuilder")}
+                    iconKey="flowbuilder"
+                    isActive={isFlowbuilderRouteActive}
+                    isOpen={openFlowSubmenu}
+                    onToggle={() => setOpenFlowSubmenu((prev) => !prev)}
+                  >
+                    <SubmenuItem
+                      to="/phrase-lists"
+                      primary="Fluxo de Campanha"
+                      icon={<EventAvailable />}
+                      iconKey="flowbuilder"
+                    />
+                    <SubmenuItem
+                      to="/flowbuilders"
+                      primary="Fluxo de conversa"
+                      icon={<ShapeLineRounded />}
+                      iconKey="flowbuilder"
+                    />
+                  </ExpandableMenuItem>
                 )}
               />
             )}
@@ -962,7 +889,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                 primary={i18n.t("mainDrawer.listItems.annoucements")}
                 icon={<Announcement />}
                 iconKey="announcements"
-                tooltip={collapsed}
+                collapsed={collapsed}
               />
             )}
 
@@ -976,7 +903,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                     primary={i18n.t("mainDrawer.listItems.messagesAPI")}
                     icon={<CodeRounded />}
                     iconKey="api"
-                    tooltip={collapsed}
+                    collapsed={collapsed}
                   />
                 )}
               />
@@ -992,7 +919,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                     primary={i18n.t("mainDrawer.listItems.users")}
                     icon={<PeopleAltOutlined />}
                     iconKey="users"
-                    tooltip={collapsed}
+                    collapsed={collapsed}
                   />
                 )}
               />
@@ -1008,7 +935,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                     primary={i18n.t("mainDrawer.listItems.queues")}
                     icon={<AccountTreeOutlined />}
                     iconKey="queues"
-                    tooltip={collapsed}
+                    collapsed={collapsed}
                   />
                 )}
               />
@@ -1024,7 +951,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                     primary={i18n.t("mainDrawer.listItems.prompts")}
                     icon={<AllInclusiveRounded />}
                     iconKey="prompts"
-                    tooltip={collapsed}
+                    collapsed={collapsed}
                   />
                 )}
               />
@@ -1040,7 +967,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                     primary={i18n.t("mainDrawer.listItems.queueIntegration")}
                     icon={<DeviceHubRounded />}
                     iconKey="integrations"
-                    tooltip={collapsed}
+                    collapsed={collapsed}
                   />
                 )}
               />
@@ -1061,7 +988,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                     icon={<SyncAlt />}
                     iconKey="connections"
                     showBadge={connectionWarning}
-                    tooltip={collapsed}
+                    collapsed={collapsed}
                   />
                 )}
               />
@@ -1073,7 +1000,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                 primary={i18n.t("mainDrawer.listItems.allConnections")}
                 icon={<PhonelinkSetupRounded />}
                 iconKey="connections"
-                tooltip={collapsed}
+                collapsed={collapsed}
               />
             )}
 
@@ -1087,7 +1014,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                     primary={i18n.t("mainDrawer.listItems.files")}
                     icon={<AttachFileRounded />}
                     iconKey="files"
-                    tooltip={collapsed}
+                    collapsed={collapsed}
                   />
                 )}
               />
@@ -1102,7 +1029,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                   primary={i18n.t("mainDrawer.listItems.financeiro")}
                   icon={<LocalAtm />}
                   iconKey="financial"
-                  tooltip={collapsed}
+                  collapsed={collapsed}
                 />
               )}
             />
@@ -1117,7 +1044,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                     primary={i18n.t("mainDrawer.listItems.settings")}
                     icon={<SettingsOutlined />}
                     iconKey="settings"
-                    tooltip={collapsed}
+                    collapsed={collapsed}
                   />
                 )}
               />
@@ -1129,7 +1056,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
                 primary={i18n.t("mainDrawer.listItems.companies")}
                 icon={<Business />}
                 iconKey="companies"
-                tooltip={collapsed}
+                collapsed={collapsed}
               />
             )}
           </>
@@ -1149,7 +1076,7 @@ const MainListItems = ({ collapsed, drawerClose }) => {
             }}
           >
             <Chip
-              label="v.9.0"
+              label="v.10.5"
               size="small"
               sx={{
                 background: iconStyles.dashboard.gradient,

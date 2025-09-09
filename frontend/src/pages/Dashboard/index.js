@@ -1,35 +1,31 @@
 import React, { useContext, useState, useEffect } from "react";
-import { makeStyles } from "@material-ui/core/styles";
-import { useTheme } from "@material-ui/core/styles";
+import { useTheme, alpha } from "@mui/material/styles";
 import {
-  Avatar,
   Box,
   Card,
   CardContent,
   Container,
   Grid,
-  IconButton,
   Paper,
   Stack,
   Typography,
   Tab,
   Tabs,
+  CircularProgress,
+  Button,
+  IconButton,
   Tooltip,
-  Divider,
+  TextField,
+  MenuItem,
 } from "@mui/material";
 import {
   Message as MessageIcon,
   Group as GroupIcon,
   AccessTime as AccessTimeIcon,
   CheckCircle as CheckCircleIcon,
-  Timeline as TimelineIcon,
   FilterList as FilterListIcon,
   SaveAlt as SaveAltIcon,
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
-  Speed as SpeedIcon,
 } from "@mui/icons-material";
-import { grey, blue, green, orange, red } from "@material-ui/core/colors";
 import * as XLSX from "xlsx";
 import moment from "moment";
 import { toast } from "react-toastify";
@@ -40,577 +36,578 @@ import useDashboard from "../../hooks/useDashboard";
 import { ChatsUser } from "./ChartsUser";
 import ChartDonut from "./ChartDonut";
 import { ChartsDate } from "./ChartsDate";
-import Filters from "./Filters";
-import { i18n } from "../../translate/i18n";
 import ForbiddenPage from "../../components/ForbiddenPage";
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    flexGrow: 1,
-    backgroundColor:
-      theme.palette.mode === "dark"
-        ? "#151718"
-        : theme.palette.background.default,
-    minHeight: "100vh",
-  },
-  container: {
-    paddingTop: theme.spacing(3),
-    paddingBottom: theme.spacing(3),
-  },
-  card: {
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    borderRadius: 16,
-    backgroundColor:
-      theme.palette.mode === "dark"
-        ? "#1E2021"
-        : theme.palette.background.paper,
-    border: theme.palette.mode === "dark" ? "1px solid #2D3133" : "none",
-    transition: "transform 0.3s, box-shadow 0.3s",
-    "&:hover": {
-      transform: "translateY(-5px)",
-      boxShadow:
-        theme.palette.mode === "dark"
-          ? "0 8px 16px rgba(0,0,0,0.4)"
-          : theme.shadows[4],
-    },
-  },
-  cardMetric: {
-    padding: theme.spacing(3),
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  metricValue: {
-    fontSize: "2rem",
-    fontWeight: 700,
-    color:
-      theme.palette.mode === "dark" ? "#FFFFFF" : theme.palette.text.primary,
-  },
-  metricLabel: {
-    fontSize: "0.875rem",
-    color:
-      theme.palette.mode === "dark" ? "#B0B3B8" : theme.palette.text.secondary,
-    marginTop: theme.spacing(1),
-  },
-  iconWrapperInAttendance: {
-    padding: theme.spacing(2),
-    borderRadius: "50%",
-    backgroundColor: "#01a19a20",
-  },
-  iconWrapperWaiting: {
-    padding: theme.spacing(2),
-    borderRadius: "50%",
-    backgroundColor: "#ff980020",
-  },
-  iconWrapperFinished: {
-    padding: theme.spacing(2),
-    borderRadius: "50%",
-    backgroundColor: "#4caf5020",
-  },
-  iconWrapperGroups: {
-    padding: theme.spacing(2),
-    borderRadius: "50%",
-    backgroundColor: "#9c27b020",
-  },
-  iconWrapperAttendants: {
-    padding: theme.spacing(2),
-    borderRadius: "50%",
-    backgroundColor: "#2196f320",
-  },
-  iconWrapperContacts: {
-    padding: theme.spacing(2),
-    borderRadius: "50%",
-    backgroundColor: "#e91e6320",
-  },
-  iconWrapperMessages: {
-    padding: theme.spacing(2),
-    borderRadius: "50%",
-    backgroundColor: "#00968820",
-  },
-  iconWrapperTime: {
-    padding: theme.spacing(2),
-    borderRadius: "50%",
-    backgroundColor: "#f4433620",
-  },
-  iconInAttendance: {
-    color: "#01a19a !important",
-  },
-  iconWaiting: {
-    color: "#ff9800 !important",
-  },
-  iconFinished: {
-    color: "#4caf50 !important",
-  },
-  iconGroups: {
-    color: "#9c27b0 !important",
-  },
-  iconAttendants: {
-    color: "#2196f3 !important",
-  },
-  iconContacts: {
-    color: "#e91e63 !important",
-  },
-  iconMessages: {
-    color: "#009688 !important",
-  },
-  iconTime: {
-    color: "#f44336 !important",
-  },
-  chartCard: {
-    height: 400,
-    marginTop: theme.spacing(3),
-    borderRadius: 16,
-    backgroundColor:
-      theme.palette.mode === "dark"
-        ? "#1E2021"
-        : theme.palette.background.paper,
-    border: theme.palette.mode === "dark" ? "1px solid #2D3133" : "none",
-    "& .MuiTypography-root": {
-      color:
-        theme.palette.mode === "dark" ? "#FFFFFF" : theme.palette.text.primary,
-    },
-  },
-  tableCard: {
-    marginTop: theme.spacing(3),
-    borderRadius: 16,
-    backgroundColor:
-      theme.palette.mode === "dark"
-        ? "#1E2021"
-        : theme.palette.background.paper,
-    border: theme.palette.mode === "dark" ? "1px solid #2D3133" : "none",
-    "& .MuiTypography-root": {
-      color:
-        theme.palette.mode === "dark" ? "#FFFFFF" : theme.palette.text.primary,
-    },
-  },
-  filterBar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: theme.spacing(3),
-    "& .MuiTypography-root": {
-      color:
-        theme.palette.mode === "dark" ? "#FFFFFF" : theme.palette.text.primary,
-    },
-  },
-  tabs: {
-    marginBottom: theme.spacing(3),
-    "& .MuiTab-root": {
-      minWidth: "auto",
-      padding: theme.spacing(1, 2),
-      borderRadius: 8,
-      marginRight: theme.spacing(1),
-      color:
-        theme.palette.mode === "dark" ? "#B0B3B8" : theme.palette.text.primary,
-      "&.Mui-selected": {
-        backgroundColor: "#01a19a",
-        color: "#fff",
-      },
-    },
-  },
-  filterButton: {
-    backgroundColor: "#01a19a",
-    color: "#fff",
-    borderRadius: "50%",
-    padding: theme.spacing(1),
-    "&:hover": {
-      backgroundColor: "#018c86",
-    },
-  },
-}));
+// CARD DE MÉTRICA BONITO COM ÍCONES
+const MetricCard = ({ icon, title, value, color }) => {
+  const theme = useTheme();
+
+  const displayValue =
+    value !== null && value !== undefined ? String(value) : "0";
+
+  return (
+    <Card
+      sx={{
+        height: "100%",
+        p: 2.5,
+        borderRadius: 4,
+        boxShadow: "none",
+        border: "1px solid",
+        borderColor: theme.palette.divider,
+        backgroundColor: "background.paper",
+        transition: "border-color 0.2s ease-in-out",
+        "&:hover": {
+          borderColor: color,
+        },
+      }}
+    >
+      <Stack
+        direction="row"
+        spacing={2}
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        <Box>
+          <Typography
+            variant="h5"
+            component="div"
+            fontWeight="bold"
+            sx={{ color: "text.primary" }}
+          >
+            {displayValue}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ textTransform: "uppercase", fontWeight: "bold" }}
+          >
+            {title}
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            width: 48,
+            height: 48,
+            minWidth: 48,
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: alpha(color, 0.1),
+          }}
+        >
+          {React.cloneElement(icon, {
+            sx: { color: color, fontSize: "1.5rem" },
+          })}
+        </Box>
+      </Stack>
+    </Card>
+  );
+};
 
 const Dashboard = () => {
-  const classes = useStyles();
   const theme = useTheme();
   const { user } = useContext(AuthContext);
+
   const [tab, setTab] = useState("metricas");
   const [counters, setCounters] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showFilter, setShowFilter] = useState(false);
+
   const [filterType, setFilterType] = useState(1);
   const [period, setPeriod] = useState(0);
   const [dateFrom, setDateFrom] = useState(
     moment().startOf("month").format("YYYY-MM-DD")
   );
   const [dateTo, setDateTo] = useState(moment().format("YYYY-MM-DD"));
+
   const { find } = useDashboard();
 
-  useEffect(() => {
-    async function firstLoad() {
-      await fetchData();
-    }
-    firstLoad();
-  }, []);
-
-  async function fetchData() {
+  // Função para buscar dados - versão estável
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const { counters: dashCounters } = await find({
-        filterType,
-        period,
-        dateFrom,
-        dateTo,
-      });
-      setCounters(dashCounters);
+      const params = { filterType, period, dateFrom, dateTo };
+      const response = await find(params);
+      const dataCounters = response?.counters || response || {};
+      setCounters(dataCounters);
     } catch (err) {
+      console.error("Erro ao buscar dados:", err);
       toast.error("Erro ao carregar dados do dashboard");
+      setCounters({});
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
-
-  const handleChangeTab = (event, newValue) => {
-    setTab(newValue);
   };
+
+  // Carregamento inicial
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleChangeTab = (event, newValue) => setTab(newValue);
 
   const exportToExcel = () => {
-    const ws = XLSX.utils.table_to_sheet(
-      document.getElementById("grid-attendants")
-    );
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "RelatorioDeAtendentes");
-    XLSX.writeFile(wb, "relatorio-de-atendentes.xlsx");
+    try {
+      const table = document.getElementById("grid-attendants");
+      if (table) {
+        const ws = XLSX.utils.table_to_sheet(table);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "RelatorioDeAtendentes");
+        XLSX.writeFile(wb, "relatorio-de-atendentes.xlsx");
+        toast.success("Relatório exportado com sucesso!");
+      } else {
+        toast.error("Tabela de atendentes não encontrada para exportação.");
+      }
+    } catch (error) {
+      toast.error("Ocorreu um erro ao exportar o relatório.");
+      console.error("Erro na exportação:", error);
+    }
   };
 
-  if (user.profile !== "admin") {
-    return <ForbiddenPage />;
-  }
+  // Função para formatar tempo em segundos
+  const formatTimeFromSeconds = (seconds) => {
+    if (!seconds || seconds === 0) return "0s";
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
+  };
+
+  if (user?.profile !== "admin") return <ForbiddenPage />;
+
+  const colors = {
+    teal: "#01a19a",
+    orange: "#ff9800",
+    green: "#4caf50",
+    purple: "#9c27b0",
+    blue: "#2196f3",
+    pink: "#e91e63",
+    red: "#f44336",
+  };
+
+  const baseCardStyle = {
+    height: "100%",
+    borderRadius: 4,
+    boxShadow: "none",
+    border: "1px solid",
+    borderColor: theme.palette.divider,
+    backgroundColor: "background.paper",
+  };
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "50vh",
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      );
+    }
+
+    if (tab === "metricas") {
+      return (
+        <Grid container spacing={3}>
+          {/* CARDS DE MÉTRICAS PRINCIPAIS */}
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Em Atendimento"
+              value={counters.supportHappening}
+              icon={<MessageIcon />}
+              color={colors.teal}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Aguardando"
+              value={counters.supportPending}
+              icon={<AccessTimeIcon />}
+              color={colors.orange}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Finalizados"
+              value={counters.supportFinished}
+              icon={<CheckCircleIcon />}
+              color={colors.green}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Total Tickets"
+              value={counters.tickets}
+              icon={<MessageIcon />}
+              color={colors.purple}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Leads"
+              value={counters.leads}
+              icon={<GroupIcon />}
+              color={colors.blue}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Com Avaliação"
+              value={counters.withRating}
+              icon={<CheckCircleIcon />}
+              color={colors.pink}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Sem Avaliação"
+              value={counters.withoutRating}
+              icon={<AccessTimeIcon />}
+              color={colors.orange}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Aguardando Avaliação"
+              value={counters.waitRating}
+              icon={<AccessTimeIcon />}
+              color={colors.teal}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Tempo Médio Atendimento"
+              value={formatTimeFromSeconds(counters.avgSupportTime)}
+              icon={<AccessTimeIcon />}
+              color={colors.red}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Tempo Médio Espera"
+              value={formatTimeFromSeconds(counters.avgWaitTime)}
+              icon={<AccessTimeIcon />}
+              color={colors.blue}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="NPS Score"
+              value={`${counters.npsScore || 0}%`}
+              icon={<CheckCircleIcon />}
+              color={colors.green}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="% Satisfação"
+              value={`${counters.percRating || 0}%`}
+              icon={<CheckCircleIcon />}
+              color={colors.purple}
+            />
+          </Grid>
+
+          {/* GRÁFICOS DE ATENDIMENTOS */}
+          <Grid item xs={12} md={8}>
+            <Card sx={baseCardStyle}>
+              <CardContent sx={{ p: 3, height: 400 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  📊 Atendimentos por Período
+                </Typography>
+                <ChartsDate
+                  dateFrom={dateFrom}
+                  dateTo={dateTo}
+                  filterType={filterType}
+                />
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card sx={baseCardStyle}>
+              <CardContent sx={{ p: 3, height: 400 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  🍩 Distribuição de Avaliações
+                </Typography>
+                <ChartDonut
+                  data={[
+                    {
+                      name: "Com Avaliação",
+                      value: parseInt(counters.withRating) || 0,
+                    },
+                    {
+                      name: "Sem Avaliação",
+                      value: parseInt(counters.withoutRating) || 0,
+                    },
+                    {
+                      name: "Aguardando",
+                      value: parseInt(counters.waitRating) || 0,
+                    },
+                  ]}
+                  title="Avaliações"
+                  value={parseInt(counters.withRating) || 0}
+                  color={colors.teal}
+                />
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* BOTÃO PARA RECARREGAR DADOS */}
+          <Grid item xs={12}>
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+              <Button
+                variant="contained"
+                onClick={fetchData}
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : null}
+                sx={{ borderRadius: 99, px: 4 }}
+              >
+                {loading ? "Carregando..." : "🔄 Recarregar Dados"}
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      );
+    }
+
+    if (tab === "graficos") {
+      return (
+        <Card sx={baseCardStyle}>
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              📈 Desempenho por Atendente
+            </Typography>
+            <ChatsUser
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              filterType={filterType}
+            />
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (tab === "atendentes") {
+      return (
+        <Card sx={baseCardStyle}>
+          <CardContent sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              👥 Status dos Atendentes
+            </Typography>
+            <TableAttendantsStatus
+              loading={loading}
+              attendants={counters.attendants || []}
+            />
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return null;
+  };
 
   return (
-    <div className={classes.root}>
-      <Container maxWidth="xl" className={classes.container}>
-        <Box className={classes.filterBar}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="h4" fontWeight="bold">
-              Dashboard
+    <Box
+      sx={{
+        bgcolor: "background.default",
+        minHeight: "100vh",
+        py: { xs: 3, md: 5 },
+      }}
+    >
+      <Container maxWidth="xl">
+        <Stack spacing={4}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 2,
+            }}
+          >
+            <Typography variant="h4" fontWeight="bold" color="text.primary">
+              📊 Dashboard
             </Typography>
-            <IconButton
-              onClick={() => setShowFilter(!showFilter)}
-              className={classes.filterButton}
-            >
-              <FilterListIcon />
-            </IconButton>
-          </Stack>
-          <Tooltip title="Exportar relatório">
-            <IconButton className={classes.filterButton}>
-              <SaveAltIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Tooltip title="Filtros">
+                <IconButton
+                  onClick={() => setShowFilter(!showFilter)}
+                  sx={{
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                    color: "primary.main",
+                    "&:hover": {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.2),
+                    },
+                  }}
+                >
+                  <FilterListIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Exportar Métricas do Dashboard">
+                <IconButton
+                  onClick={exportToExcel}
+                  sx={{
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                    color: "primary.main",
+                    "&:hover": {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.2),
+                    },
+                  }}
+                >
+                  <SaveAltIcon />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </Box>
 
-        {showFilter && (
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Filters
-              filterType={filterType}
-              setFilterType={setFilterType}
-              period={period}
-              setPeriod={setPeriod}
-              dateFrom={dateFrom}
-              setDateFrom={setDateFrom}
-              dateTo={dateTo}
-              setDateTo={setDateTo}
-              onApply={fetchData}
-            />
-          </Paper>
-        )}
-
-        <Tabs
-          value={tab}
-          onChange={handleChangeTab}
-          className={classes.tabs}
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          <Tab value="metricas" label="Métricas" />
-          <Tab value="graficos" label="Gráficos" />
-          <Tab value="atendentes" label="Atendentes" />
-        </Tabs>
-
-        {tab === "metricas" && (
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.inAttendanceCount || 0}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      EM ATENDIMENTO
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperInAttendance}>
-                    <MessageIcon className={classes.iconInAttendance} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.waitingTickets || 0}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      AGUARDANDO
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperWaiting}>
-                    <AccessTimeIcon className={classes.iconWaiting} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.finishedTicketsCount || 0}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      FINALIZADOS
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperFinished}>
-                    <CheckCircleIcon className={classes.iconFinished} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.groupsCount || 0}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      GRUPOS
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperGroups}>
-                    <GroupIcon className={classes.iconGroups} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.attendantsOnline || 0}/
-                      {counters.attendantsTotal || 0}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      ATENDENTES ATIVOS
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperAttendants}>
-                    <GroupIcon className={classes.iconAttendants} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.newContactsCount || 0}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      NOVOS CONTATOS
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperContacts}>
-                    <GroupIcon className={classes.iconContacts} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.receivedMessages || 0}/
-                      {counters.totalMessages || 0}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      MENSAGENS RECEBIDAS
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperMessages}>
-                    <MessageIcon className={classes.iconMessages} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.sentMessages || 0}/{counters.totalMessages || 0}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      MENSAGENS ENVIADAS
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperMessages}>
-                    <MessageIcon className={classes.iconMessages} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.avgAttendanceTime || "00h 00m"}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      T.M. DE ATENDIMENTO
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperTime}>
-                    <AccessTimeIcon className={classes.iconTime} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.avgWaitTime || "00h 00m"}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      T.M. DE ESPERA
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperTime}>
-                    <AccessTimeIcon className={classes.iconTime} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.activeTickets || 0}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      TICKETS ATIVOS
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperInAttendance}>
-                    <MessageIcon className={classes.iconInAttendance} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card className={classes.card}>
-                <CardContent className={classes.cardMetric}>
-                  <div>
-                    <Typography className={classes.metricValue}>
-                      {counters.inactiveTickets || 0}
-                    </Typography>
-                    <Typography className={classes.metricLabel}>
-                      TICKETS PASSIVOS
-                    </Typography>
-                  </div>
-                  <div className={classes.iconWrapperWaiting}>
-                    <MessageIcon className={classes.iconWaiting} />
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={8}>
-              <Card className={classes.chartCard}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Atendimentos por Período
-                  </Typography>
-                  <ChartsDate />
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card className={classes.chartCard}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Distribuição de Status
-                  </Typography>
-                  <ChartDonut
-                    data={[
-                      {
-                        name: "Status",
-                        value: counters.supportHappyCount || 0,
-                      },
-                    ]}
-                    title="Atendimentos"
-                    value={counters.supportHappyCount || 0}
-                    color="#01a19a"
-                  />
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        )}
-
-        {tab === "graficos" && (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Card className={classes.chartCard}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Desempenho por Atendente
-                  </Typography>
-                  <ChatsUser />
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        )}
-
-        {tab === "atendentes" && (
-          <Card className={classes.tableCard}>
-            <CardContent>
+          {showFilter && (
+            <Paper sx={{ p: { xs: 2, md: 3 }, ...baseCardStyle }}>
               <Typography variant="h6" gutterBottom>
-                Status dos Atendentes
+                🔍 Filtros do Dashboard
               </Typography>
-              <TableAttendantsStatus
-                loading={loading}
-                attendants={counters.attendants || []}
-              />
-            </CardContent>
-          </Card>
-        )}
+
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    select
+                    label="Tipo de Filtro"
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                  >
+                    <MenuItem value={1}>Todos os Dados</MenuItem>
+                    <MenuItem value={2}>Somente Ativos</MenuItem>
+                    <MenuItem value={3}>Somente Inativos</MenuItem>
+                  </TextField>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    select
+                    label="Período"
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value)}
+                  >
+                    <MenuItem value={0}>Personalizado</MenuItem>
+                    <MenuItem value={1}>Hoje</MenuItem>
+                    <MenuItem value={7}>Últimos 7 dias</MenuItem>
+                    <MenuItem value={30}>Últimos 30 dias</MenuItem>
+                    <MenuItem value={90}>Últimos 90 dias</MenuItem>
+                  </TextField>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Data Início"
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Data Fim"
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Box
+                    sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}
+                  >
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        setFilterType(1);
+                        setPeriod(0);
+                        setDateFrom(
+                          moment().startOf("month").format("YYYY-MM-DD")
+                        );
+                        setDateTo(moment().format("YYYY-MM-DD"));
+                      }}
+                    >
+                      Limpar Filtros
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={fetchData}
+                      startIcon={<FilterListIcon />}
+                    >
+                      Aplicar Filtros
+                    </Button>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          )}
+
+          <Tabs
+            value={tab}
+            onChange={handleChangeTab}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              "& .MuiTabs-flexContainer": { gap: 1 },
+              "& .MuiTabs-indicator": { display: "none" },
+              "& .MuiTab-root": {
+                borderRadius: 99,
+                minHeight: 40,
+                px: 3,
+                color: "text.secondary",
+                "&.Mui-selected": {
+                  backgroundColor: theme.palette.primary.main,
+                  color: theme.palette.primary.contrastText,
+                  fontWeight: "bold",
+                },
+              },
+            }}
+          >
+            <Tab value="metricas" label="📊 Métricas" />
+            <Tab value="graXficos" label="📈 Gráficos" />
+            <Tab value="atendentes" label="👥 Atendentes" />
+          </Tabs>
+
+          <Box>{renderContent()}</Box>
+        </Stack>
       </Container>
-    </div>
+    </Box>
   );
 };
 
