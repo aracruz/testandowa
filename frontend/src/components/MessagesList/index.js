@@ -1042,7 +1042,7 @@ const MessagesList = ({ isGroup, onDrop, whatsappId, queueId, channel }) => {
     }
   };
 
-  const path = require("path");
+  const path = require("path-browserify");
 
   const renderQuotedMessage = (message) => {
     return (

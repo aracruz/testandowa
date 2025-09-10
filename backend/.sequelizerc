@@ -1,4 +1,4 @@
-const { resolve } = require("path");
+const { resolve } = require("path-browserify");
 
 module.exports = {
   "config": resolve(__dirname, "dist", "config", "database.js"),
