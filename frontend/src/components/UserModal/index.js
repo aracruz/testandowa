@@ -33,7 +33,7 @@ import TabPanel from "../TabPanel";
 import AvatarUploader from "../AvatarUpload";
 
 const backendUrl = getBackendUrl();
-const path = require('path');
+const path = require('path-browserify');
 
 const useStyles = makeStyles(theme => ({
 	root: {
